@@ -4,13 +4,10 @@ import rospy
 import os
 # watch out on the order for the next two imports lol
 from tf import TransformListener
-try:
-    import tensorflow as tf
-except:
-    pass
+import tensorflow as tf
 import numpy as np
-from sensor_msgs.msg import Image, CameraInfo, LaserScan
-from asl_turtlebot.msg import DetectedObject
+from sensor_msgs.msg import CompressedImage, Image, CameraInfo, LaserScan
+from asl_turtlebot.msg import DetectedObject, DetectedObjectList
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import math
@@ -38,7 +35,8 @@ class DetectorParams:
         self.use_tf = rospy.get_param("use_tf")
 
         # Path to the trained conv net
-        model_path = rospy.get_param("~model_path", "../tfmodels/stop_signs_gazebo.pb")
+        # model_path = rospy.get_param("~model_path", "../tfmodels/stop_signs_gazebo.pb")
+        model_path = rospy.get_param("~model_path", "../tfmodels/ssd_mobilenet_v1_coco.pb")
         label_path = rospy.get_param("~label_path", "../tfmodels/coco_labels.txt")
         self.model_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), model_path)
         self.label_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), label_path)
@@ -159,9 +157,15 @@ class Detector:
 
         ########## Code starts here ##########
         # TODO: Compute x, y, z.
-        x = 0.
-        y = 0.
-        z = 1.
+        x_temp = (u - self.cx)/self.fx
+        y_temp = (v - self.cy)/self.fy
+        z_temp = 1
+
+	# rescale
+	scale_temp = np.linalg.norm([x_temp,y_temp,z_temp])
+	x = x_temp/scale_temp
+	y = y_temp/scale_temp
+	z = z_temp/scale_temp 
         ########## Code ends here ##########
 
         return x, y, z
@@ -235,7 +239,7 @@ class Detector:
                 if not self.object_publishers.has_key(cl):
                     self.object_publishers[cl] = rospy.Publisher('/detector/'+self.object_labels[cl],
                         DetectedObject, queue_size=10)
-
+                rospy.loginfo(self.object_labels[cl])
                 # publishes the detected object and its location
                 object_msg = DetectedObject()
                 object_msg.id = cl
@@ -258,14 +262,14 @@ class Detector:
 
         ########## Code starts here ##########
         # TODO: Extract camera intrinsic parameters.
-        self.cx = 0.
-        self.cy = 0.
-        self.fx = 1.
-        self.fy = 1.
+        self.cx = msg.K[2]
+        self.cy = msg.K[5]
+        self.fx = msg.K[0]
+        self.fy = msg.K[4]
         ########## Code ends here ##########
 
     def laser_callback(self, msg):
-        """ callback for thr laser rangefinder """
+        """ callback for the laser rangefinder """
 
         self.laser_ranges = msg.ranges
         self.laser_angle_increment = msg.angle_increment
