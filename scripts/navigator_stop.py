@@ -50,10 +50,6 @@ class Navigator:
         # Stop sign detector
         rospy.Subscriber('/detector/stop_sign', DetectedObject, self.stop_sign_detected_callback)
 
-        rospy.Subscriber('/detector/hot_dog', DetectedObject, self.hot_dog_detected_callback)
-
-
-
         # END OF WE CHANGED THIS STUFF
 
         # current state
@@ -87,8 +83,10 @@ class Navigator:
         self.plan_start = [0.,0.]
         
         # Robot limits
-        self.v_max = 0.2    # maximum velocity
-        self.om_max = 0.4   # maximum angular velocity
+        #self.v_max = 0.2    # maximum velocity
+        self.v_max = 0.5
+        #self.om_max = 0.4   # maximum angular velocity
+        self.om_max = 0.8
 
         self.v_des = 0.12   # desired cruising velocity
         self.theta_start_thresh = 0.05   # threshold in theta to start moving forward when path-following
@@ -129,13 +127,13 @@ class Navigator:
         rospy.Subscriber('/map_metadata', MapMetaData, self.map_md_callback)
         rospy.Subscriber('/cmd_nav', Pose2D, self.cmd_nav_callback)
 
+        # ADD CURRENT STATE PUBLISHER (11/15/20 DEM)
+        self.current_state_pub = rospy.Publisher('/current_state', Pose2D, queue_size=10)
+
         print "finished init"
     
 
     ######## CALLBACK FUNCTIONS ########
-
-    def hot_dog_detected_callback(self, msg):
-	rospy.loginfo("Cool, a hot dog!!!!!!")
 
     def stop_sign_detected_callback(self, msg):
         """ callback for when the detector has found a stop sign. Note that
@@ -240,7 +238,8 @@ class Navigator:
         returns whether the robot has reached the goal position with enough
         accuracy to return to idle state
         """
-        return (linalg.norm(np.array([self.x-self.x_g, self.y-self.y_g])) < self.near_thresh and abs(wrapToPi(self.theta - self.theta_g)) < self.at_thresh_theta)
+        # CHANGED FROM NEAR_THRESH TO AT_THRESH
+        return (linalg.norm(np.array([self.x-self.x_g, self.y-self.y_g])) < self.at_thresh and abs(wrapToPi(self.theta - self.theta_g)) < self.at_thresh_theta)
 
     def aligned(self):
         """
@@ -256,7 +255,7 @@ class Navigator:
         return (self.plan_resolution*round(x[0]/self.plan_resolution), self.plan_resolution*round(x[1]/self.plan_resolution))
 
     def switch_mode(self, new_mode):
-        rospy.loginfo("Switching from %s -> %s", self.mode, new_mode)
+        rospy.loginfo("NAVIGatOR: switching from %s -> %s", self.mode, new_mode)
         self.mode = new_mode
 
     def publish_planned_path(self, path, publisher):
@@ -335,6 +334,7 @@ class Navigator:
         self.plan_start = x_init
         x_goal = self.snap_to_grid((self.x_g, self.y_g))
         problem = AStar(state_min,state_max,x_init,x_goal,self.occupancy,self.plan_resolution)
+	#problem = PathPlan(state_min,state_max,x_init,x_goal,self.occupancy,self.plan_resolution)
 
         rospy.loginfo("Navigator: computing navigation plan")
         rospy.loginfo("Current mode: "+ str(self.mode) )
@@ -405,6 +405,13 @@ class Navigator:
                 self.y = translation[1]
                 euler = tf.transformations.euler_from_quaternion(rotation)
                 self.theta = euler[2]
+                # PUBLISH CURRENT STATE (11/15/20 DEM)
+                current_state = Pose2D()
+                current_state.x = self.x
+                current_state.y = self.y
+                current_state.theta = self.theta
+                self.current_state_pub.publish(current_state)
+
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
                 self.current_plan = []
                 rospy.loginfo("Navigator: waiting for state info")
