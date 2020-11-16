@@ -239,7 +239,7 @@ class Detector:
                 if not self.object_publishers.has_key(cl):
                     self.object_publishers[cl] = rospy.Publisher('/detector/'+self.object_labels[cl],
                         DetectedObject, queue_size=10)
-                rospy.loginfo(self.object_labels[cl])
+                # rospy.loginfo(self.object_labels[cl])
                 # publishes the detected object and its location
                 object_msg = DetectedObject()
                 object_msg.id = cl
