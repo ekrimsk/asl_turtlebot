@@ -12,11 +12,11 @@ import tf
 class Mode(Enum):
     """State machine modes. Feel free to change."""
     IDLE = 1
-    POSE = 2
+    # POSE = 2
     STOP = 3
     CROSS = 4
     NAV = 5
-    MANUAL = 6
+    # MANUAL = 6
 
 
 class SupervisorParams:
@@ -230,7 +230,7 @@ class Supervisor:
 
         if not self.params.use_gazebo:
             try:
-                origin_frame = "/map" if self.params.mapping else "/odom"
+                origin_frame = "/map" if mapping else "/odom"
                 translation, rotation = self.trans_listener.lookupTransform(origin_frame, '/base_footprint', rospy.Time(0))
                 self.x, self.y = translation[0], translation[1]
                 self.theta = tf.transformations.euler_from_quaternion(rotation)[2]
@@ -246,31 +246,32 @@ class Supervisor:
         # TODO: Currently the state machine will just go to the pose without stopping
         #       at the stop sign.
 
+        # elif self.mode == Mode.POSE:
+            # Moving towards a desired pose
+            # if self.close_to(self.x_g, self.y_g, self.theta_g):
+                # self.mode = Mode.IDLE
+            # else:
+                # self.go_to_pose()
+                
         if self.mode == Mode.IDLE:
             # Send zero velocity
             self.stay_idle()
-
-        elif self.mode == Mode.POSE:
-            # Moving towards a desired pose
-            if self.close_to(self.x_g, self.y_g, self.theta_g):
-                self.mode = Mode.IDLE
-            else:
-                self.go_to_pose()
-
         elif self.mode == Mode.STOP:
-            # At a stop sign
-            self.nav_to_pose()
-
+	    # At a stop sign
+	    if self.has_stopped():
+		self.init_crossing()
+	    else:
+            	self.stay_idle()
         elif self.mode == Mode.CROSS:
-            # Crossing an intersection
+            # Crossing the intersection
+	    if self.has_crossed():
+		self.mode = Mode.NAV
             self.nav_to_pose()
-
         elif self.mode == Mode.NAV:
             if self.close_to(self.x_g, self.y_g, self.theta_g):
                 self.mode = Mode.IDLE
             else:
                 self.nav_to_pose()
-
         else:
             raise Exception("This mode is not supported: {}".format(str(self.mode)))
 

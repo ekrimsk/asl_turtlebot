@@ -74,9 +74,12 @@ class Detector:
         self.object_labels = load_object_labels(PATH_TO_LABELS)
 
         self.tf_listener = TransformListener()
-        rospy.Subscriber('/raspicam_node/image_raw', Image, self.camera_callback, queue_size=1, buff_size=2**24)
-        rospy.Subscriber('/raspicam_node/image/compressed', CompressedImage, self.compressed_camera_callback, queue_size=1, buff_size=2**24)
-        rospy.Subscriber('/raspicam_node/camera_info', CameraInfo, self.camera_info_callback)
+        #rospy.Subscriber('/raspicam_node/image_raw', Image, self.camera_callback, queue_size=1, buff_size=2**24)
+        #rospy.Subscriber('/raspicam_node/image/compressed', CompressedImage, self.compressed_camera_callback, queue_size=1, buff_size=2**24)
+        #rospy.Subscriber('/raspicam_node/camera_info', CameraInfo, self.camera_info_callback)
+        rospy.Subscriber('/camera/image_raw', Image, self.camera_callback, queue_size=1)
+        rospy.Subscriber('/camera/camera_info', CameraInfo, self.camera_info_callback)
+
         rospy.Subscriber('/scan', LaserScan, self.laser_callback)
 
     def run_detection(self, img):
@@ -242,8 +245,10 @@ class Detector:
                 dist = self.estimate_distance(thetaleft,thetaright,img_laser_ranges)
 
                 if not self.object_publishers.has_key(cl):
-                    self.object_publishers[cl] = rospy.Publisher('/detector/'+self.object_labels[cl],
-                        DetectedObject, queue_size=10)
+                    self.object_publishers[cl] = rospy.Publisher('/detector/'+self.object_labels[cl], DetectedObject, queue_size=10)
+
+                # roslog objects seen
+                rospy.loginfo("I just saw a " + self.object_labels[cl])
 
                 # publishes the detected object and its location
                 object_msg = DetectedObject()

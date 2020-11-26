@@ -33,7 +33,7 @@
 
   <!-- convert joint states to TF transforms for rviz, etc -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
-    respawn="false">
+    respawn="false" output="screen">
     <remap from="/joint_states" to="/turtlebot3_burger/joint_states" />
     <param name="publish_frequency" type="double" value="10.0" />
   </node>
@@ -75,8 +75,6 @@
   <node pkg="asl_turtlebot" type="goal_commander.py" name="goal_commander" />
   <node pkg="asl_turtlebot" type="detector.py" name="turtlebot_detector" output="screen" />
   <node pkg="asl_turtlebot" type="navigator_stop.py" name="turtlebot_navigator" output="screen" />
-  <node pkg="asl_turtlebot" type="expliver.py" name="turtlebot_expliver" output="screen" />
-  <node pkg="asl_turtlebot" type="goal_marker.py" name="marker_node" />
 
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find asl_turtlebot)/rviz/project_sim.rviz"/>
 </launch>
